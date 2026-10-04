@@ -1,0 +1,18 @@
+apiVersion: 1
+datasources:
+  - name: LogSentinel DB
+    uid: logsentinel-pg
+    type: grafana-postgresql-datasource
+    url: postgres:5432
+    user: logsentinel
+    secureJsonData:
+      password: logsentinel
+    jsonData:
+      database: logsentinel
+      sslmode: disable
+      postgresVersion: 1600
+    isDefault: true
+  - name: Prometheus
+    uid: logsentinel-prom
+    type: prometheus
+    url: http://prometheus:9090

@@ -1,0 +1,70 @@
+{
+  "info": {
+    "log_lines": 2000,
+    "anomalous_lines": 143,
+    "windows": {
+      "train_normal": 78,
+      "val": 40,
+      "test": 60
+    },
+    "anomalous_test_windows": 25,
+    "window": "20 lines, step 10"
+  },
+  "rows": [
+    {
+      "model": "Static error-rate threshold",
+      "detector": "static_threshold",
+      "threshold": 0.1,
+      "fit_seconds": 0.0,
+      "precision": 0.75,
+      "recall": 0.96,
+      "f1": 0.8421052631578947,
+      "roc_auc": 0.8525714285714285,
+      "pr_auc": 0.6665276858218034
+    },
+    {
+      "model": "Isolation Forest",
+      "detector": "isolation_forest",
+      "threshold": 0.35877077185192735,
+      "fit_seconds": 0.22,
+      "precision": 0.72,
+      "recall": 0.72,
+      "f1": 0.72,
+      "roc_auc": 0.8937142857142857,
+      "pr_auc": 0.8506964898106872
+    },
+    {
+      "model": "Isolation Forest + novelty rule",
+      "detector": "isolation_forest",
+      "threshold": 0.35877077185192735,
+      "fit_seconds": 0.22,
+      "precision": 0.7142857142857143,
+      "recall": 1.0,
+      "f1": 0.8333333333333333,
+      "roc_auc": 0.8937142857142857,
+      "pr_auc": 0.8506964898106872
+    },
+    {
+      "model": "LSTM Autoencoder",
+      "detector": "lstm_autoencoder",
+      "threshold": 77.207763671875,
+      "fit_seconds": 2.17,
+      "precision": 0.7619047619047619,
+      "recall": 0.64,
+      "f1": 0.6956521739130435,
+      "roc_auc": 0.8377142857142857,
+      "pr_auc": 0.6498898427378534
+    },
+    {
+      "model": "LSTM Autoencoder + novelty rule",
+      "detector": "lstm_autoencoder",
+      "threshold": 77.207763671875,
+      "fit_seconds": 2.17,
+      "precision": 0.7352941176470589,
+      "recall": 1.0,
+      "f1": 0.8474576271186441,
+      "roc_auc": 0.8377142857142857,
+      "pr_auc": 0.6498898427378534
+    }
+  ]
+}

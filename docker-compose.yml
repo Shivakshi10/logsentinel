@@ -1,0 +1,107 @@
+name: logsentinel
+
+x-app: &app
+  build: .
+  image: logsentinel:latest
+  environment: &app-env
+    KAFKA_BOOTSTRAP: redpanda:9092
+    KAFKA_TOPIC: logs
+    DATABASE_URL: postgresql://logsentinel:logsentinel@postgres:5432/logsentinel
+    MODEL_PATH: /models/model.pkl
+    ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+  volumes:
+    - models:/models
+
+services:
+  redpanda:  # Kafka-compatible broker, much lighter than Kafka + ZooKeeper
+    image: docker.redpanda.com/redpandadata/redpanda:v24.2.7
+    command:
+      - redpanda start
+      - --kafka-addr internal://0.0.0.0:9092,external://0.0.0.0:19092
+      - --advertise-kafka-addr internal://redpanda:9092,external://localhost:19092
+      - --smp 1
+      - --memory 1G
+      - --mode dev-container
+    ports:
+      - "19092:19092"
+    healthcheck:
+      test: ["CMD-SHELL", "rpk cluster health | grep -q 'Healthy:.*true'"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: logsentinel
+      POSTGRES_PASSWORD: logsentinel
+      POSTGRES_DB: logsentinel
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U logsentinel"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  trainer:  # trains the model once; later runs reuse it
+    <<: *app
+    command: ["train", "--out", "/models/model.pkl", "--skip-if-exists"]
+    user: root
+
+  detector:
+    <<: *app
+    command: ["consume"]
+    depends_on:
+      trainer: { condition: service_completed_successfully }
+      redpanda: { condition: service_healthy }
+      postgres: { condition: service_healthy }
+    ports:
+      - "8001:8001"  # Prometheus metrics
+    restart: unless-stopped
+
+  api:
+    <<: *app
+    command: ["serve", "--port", "8000"]
+    depends_on:
+      trainer: { condition: service_completed_successfully }
+      postgres: { condition: service_healthy }
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+  producer:  # replays 6 hours of synthetic logs (with incidents) at 30x speed
+    <<: *app
+    command: ["produce", "--synthetic-hours", "6", "--speed", "30"]
+    depends_on:
+      redpanda: { condition: service_healthy }
+      detector: { condition: service_started }
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    volumes:
+      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/logsentinel.json
+    volumes:
+      - ./config/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./config/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "3000:3000"
+    depends_on:
+      - postgres
+      - prometheus
+
+volumes:
+  models:
+  pgdata:
